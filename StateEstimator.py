@@ -61,7 +61,7 @@ class ParticleFilter(StateEstimator):
         """ Returns likelihood of getting measurement z given that the
         object has state (p.x, p.y, p.theta)."""
         tf_shape = af.translate(af.rotate(self.shape, 
-                            p.theta, use_radians=True), p.x, p.y)
+                            p.theta, use_radians=True, origin=(0,0)), p.x, p.y)
         point  = Point(z[0], z[1])
         within = point.within(tf_shape)
         return self.OBS_ACCURACY if within == z[2] else (1 - self.OBS_ACCURACY)
@@ -92,6 +92,19 @@ class ParticleFilter(StateEstimator):
         q = ax.quiver(W[0,:], W[1,:], W[2,:], W[3,:], counts)
         return q
 
+    def draw_histogram(self, ax1, ax2, ax3):
+        """ Draws a histogram of particle x, y, theta on thes plt Axes."""
+        X = np.array([p.x for p in self.particles])
+        h1 = ax1.hist(X)
+        ax1.set_xlabel('x')
+        Y = np.array([p.y for p in self.particles])
+        h2 = ax2.hist(Y)
+        ax2.set_xlabel('y')
+        T = np.array([p.theta for p in self.particles])
+        h3 = ax3.hist(T)
+        ax3.set_xlabel('\theta')
+        return h1, h2, h3
+    
     def get_uncertainty(self):
         pass
 
