@@ -95,14 +95,15 @@ class ParticleFilter(StateEstimator):
     def draw_histogram(self, ax1, ax2, ax3):
         """ Draws a histogram of particle x, y, theta on thes plt Axes."""
         X = np.array([p.x for p in self.particles])
-        h1 = ax1.hist(X)
+        weights = np.ones_like(X)/float(len(X))
+        h1 = ax1.hist(X, weights=weights)
         ax1.set_xlabel('x')
         Y = np.array([p.y for p in self.particles])
-        h2 = ax2.hist(Y)
+        h2 = ax2.hist(Y, weights=weights)
         ax2.set_xlabel('y')
         T = np.array([p.theta for p in self.particles])
-        h3 = ax3.hist(T)
-        ax3.set_xlabel('\theta')
+        h3 = ax3.hist(T, weights=weights)
+        ax3.set_xlabel('theta')
         return h1, h2, h3
     
     def get_uncertainty(self):
