@@ -36,7 +36,8 @@ class ParticleFilter(StateEstimator):
         self.particles = [Particle() for i in range(num_particles)]
         self.reset_particles(map_size)
 
-        self.TRANSITION_SIGMA    = 0.1
+        self.XY_TRANSITION_SIGMA    = 0.1
+        self.THETA_TRANSITION_SIGMA = np.pi/6
         self.OBS_ACCURACY     = 0.99
 
     def update(self, z):
@@ -69,9 +70,9 @@ class ParticleFilter(StateEstimator):
     def transition_fnc(self, p):
         """ Makes a new particle, moved by a random amount. """
         new_p = Particle()
-        new_p.x     = np.random.normal(loc=p.x, scale=self.TRANSITION_SIGMA)
-        new_p.y     = np.random.normal(loc=p.y, scale=self.TRANSITION_SIGMA)
-        new_p.theta = np.random.normal(loc=p.theta, scale=self.TRANSITION_SIGMA)
+        new_p.x     = np.random.normal(loc=p.x, scale=self.XY_TRANSITION_SIGMA)
+        new_p.y     = np.random.normal(loc=p.y, scale=self.XY_TRANSITION_SIGMA)
+        new_p.theta = np.random.normal(loc=p.theta, scale=self.THETA_TRANSITION_SIGMA) % 2*np.pi
         return new_p
 
     def reset_particles(self, map_size):
