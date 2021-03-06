@@ -42,6 +42,12 @@ class ParticleFilter(StateEstimator):
         self.XY_TRANSITION_SIGMA = 0.1
         self.THETA_TRANSITION_SIGMA = np.pi / 6
         self.OBS_ACCURACY = 0.99
+    
+    def noisy_measure(self, x, y, truth):
+        hit = truth
+        if not np.random.random() < self.OBS_ACCURACY:
+            hit = not hit
+        return x, y, hit
 
     def update(self, z):
         """ Updates particles and estimate with new measurement z=(x,y,CONTACT)"""
