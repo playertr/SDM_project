@@ -7,6 +7,7 @@ import numpy as np
 from shapely import affinity as af
 from shapely.geometry import Point
 from scipy.stats import entropy
+from copy import deepcopy
 
 
 class StateEstimator(ABC):
@@ -37,12 +38,15 @@ class ParticleFilter(StateEstimator):
         super().__init__(map_size)
         self.shape = shape  # shape of object
         self.particles = [Particle() for i in range(num_particles)]
-        self.reset_particles(map_size)
+        self.reset_particles()
 
         self.XY_TRANSITION_SIGMA = 0.1
         self.THETA_TRANSITION_SIGMA = np.pi / 6
         self.OBS_ACCURACY = 0.99
     
+    def copy(self):
+        return deepcopy(self)
+
     def noisy_measure(self, x, y, truth):
         hit = truth
         if not np.random.random() < self.OBS_ACCURACY:
@@ -139,14 +143,14 @@ class ParticleFilter(StateEstimator):
 
         return entropy((H / np.sum(H)).flatten())
 
-    def get_candidate_actions(self, p_samples=20, tot_samples=50, sigma=2):
+    def get_candidate_actions(self, p_samples=10, tot_samples=50, sigma=2):
         samples = []
         for p in self.particles:
             # Double check that this is the correct syntax for getting the centroid -----------
             cen_loc = p.shape.centroid
             for take_samples in range(p_samples):
-                samples.append((np.random.normal(loc=cen_loc[0], scale=sigma),
-                                (np.random.normal(loc=cen_loc[1], scale=sigma))))
+                samples.append((np.random.normal(loc=cen_loc.x, scale=sigma),
+                                (np.random.normal(loc=cen_loc.y, scale=sigma))))
         return [samples[i] for i in np.random.randint(0, len(samples), size=tot_samples)]
 
 
