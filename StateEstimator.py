@@ -64,8 +64,7 @@ class ParticleFilter(StateEstimator):
     def obs_likelihood(self, p, z):
         """ Returns likelihood of getting measurement z given that the
         object has state (p.x, p.y, p.theta)."""
-        tf_shape = af.translate(af.rotate(self.shape,
-                                          p.theta, use_radians=True, origin=(0, 0)), p.x, p.y)
+        tf_shape = p.shape
         point = Point(z[0], z[1])
         within = point.within(tf_shape)
         return self.OBS_ACCURACY if within == z[2] else (1 - self.OBS_ACCURACY)
@@ -134,7 +133,7 @@ class ParticleFilter(StateEstimator):
 
         return entropy((H / np.sum(H)).flatten())
 
-    def get_candidate_action(self, p_samples=20, tot_samples=50, sigma=3):
+    def get_candidate_actions(self, p_samples=20, tot_samples=50, sigma=2):
         samples = []
         for p in self.particles:
             # Double check that this is the correct syntax for getting the centroid -----------
@@ -157,7 +156,7 @@ class ParticleFilter(StateEstimator):
                 misses += 1
         return hits / (hits + misses)
 
-            
+
 
 class Particle:
     """ Single particle in a particle filter. State is x, y, theta."""
