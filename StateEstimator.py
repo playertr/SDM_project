@@ -41,7 +41,7 @@ class ParticleFilter(StateEstimator):
         self.reset_particles()
 
         self.XY_TRANSITION_SIGMA = 0.1
-        self.THETA_TRANSITION_SIGMA = np.pi / 6
+        self.THETA_TRANSITION_SIGMA = np.pi / 24
         self.OBS_ACCURACY = 0.99
     
     def copy(self):
