@@ -16,8 +16,9 @@ class World:
         self.x          = x
         self.y          = y
         self.theta      = theta
-        self.tf_shape   = af.translate(af.rotate(self.shape, 
+        self.tf_shape   = af.translate(af.rotate(self.shape,
                             theta, use_radians=True, origin=(0,0)), x, y)
+        self.centroid = self.tf_shape.centroid
 
     def measure(self, x, y):
         """ Determine whether point (x,y) is within the shape."""
