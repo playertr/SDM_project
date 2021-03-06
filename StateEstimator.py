@@ -74,7 +74,7 @@ class ParticleFilter(StateEstimator):
         new_p = Particle()
         new_p.x = np.random.normal(loc=p.x, scale=self.XY_TRANSITION_SIGMA)
         new_p.y = np.random.normal(loc=p.y, scale=self.XY_TRANSITION_SIGMA)
-        new_p.theta = np.random.normal(loc=p.theta, scale=self.THETA_TRANSITION_SIGMA) % 2 * np.pi
+        new_p.theta = np.random.normal(loc=p.theta, scale=self.THETA_TRANSITION_SIGMA) % (2 * np.pi)
         new_p.shape = af.translate(af.rotate(self.shape, new_p.theta, use_radians=True,
                                              origin=(0, 0)), new_p.x, new_p.y)
         return new_p
