@@ -128,7 +128,7 @@ class ParticleFilter(StateEstimator):
 
     def get_entropy(self, bin_sizes=(50, 50, 10)):
         """
-        Given the current particle distribution returns the shannon entropy
+        Given the current particle distribution returns the normalized shannon entropy
         :param bin_sizes: number of bins for x, y, theta
         :return: Shannon entropy
         """
@@ -141,7 +141,7 @@ class ParticleFilter(StateEstimator):
         bounds = ((0, self.map_size[0]), (0, self.map_size[1]), (0, 2 * np.pi))
         H, edges = np.histogramdd((x, y, theta), bins=bin_sizes, range=bounds)
 
-        return entropy((H / np.sum(H)).flatten())
+        return entropy((H / np.sum(H)).flatten()) / np.log(H.size)
 
     def get_candidate_actions(self, p_samples=10, tot_samples=50, sigma=2):
         samples = []
