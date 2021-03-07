@@ -37,7 +37,7 @@ class ParticleFilter(StateEstimator):
 
     def __init__(self, shape, num_particles, map_size):
         super().__init__(map_size)
-        self.shape = shape # shape of object
+        self.shape = af.translate(shape, -shape.centroid.xy[0].tolist()[0], -shape.centroid.xy[1].tolist()[0]) # shape of object
         self.particles = [Particle() for i in range(num_particles)]
         self.reset_particles()
 

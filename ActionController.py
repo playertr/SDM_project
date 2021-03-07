@@ -16,7 +16,7 @@ class ActionController:
     # Experiment
     lookahead_depth, discount):
         self.world = World(shape, x, y, theta, map_size)
-        self.particle_filter = ParticleFilter(shape - shape.centroid, num_particles, map_size)
+        self.particle_filter = ParticleFilter(shape, num_particles, map_size)
 
         self.lookahead_depth = lookahead_depth
         self.discount = discount
