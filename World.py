@@ -11,7 +11,7 @@ class World:
     """2D continuous map world to hold a 2D shape. """
 
     def __init__(self, shape, x, y, theta, map_size=(10,10)):
-        self.shape      = shape # a Polygon object
+        self.shape      = shape - shape.centroid # a Polygon object
         self.map_size   = map_size
         self.x          = x
         self.y          = y

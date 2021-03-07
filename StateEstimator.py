@@ -20,6 +20,7 @@ class StateEstimator(ABC):
         self.y = None
         self.theta = None
         self.map_size = map_size
+        self.centroid = None
 
     def get_state(self):
         """ Return the estimated most-likely state. """
@@ -36,7 +37,7 @@ class ParticleFilter(StateEstimator):
 
     def __init__(self, shape, num_particles, map_size):
         super().__init__(map_size)
-        self.shape = shape  # shape of object
+        self.shape = shape # shape of object
         self.particles = [Particle() for i in range(num_particles)]
         self.reset_particles()
 

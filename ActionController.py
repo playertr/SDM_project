@@ -16,17 +16,55 @@ class ActionController:
     # ParticleFilter
     num_particles, lookahead_depth):
         self.world = World(shape, x, y, theta, map_size)
-        self.particle_filter = ParticleFilter(shape, num_particles, map_size)
+        self.particle_filter = ParticleFilter(shape - shape.centroid, num_particles, map_size)
         
         self.lookahead_depth = lookahead_depth
         self.previous_action = None
+        self.converged = None
+
+        # Convergence criteria
+        self.mean_xy_threshold = 1
+        self.mean_theta_threshold = np.pi / 8
+        self.std_xy_threshold = 2
+        self.std_theta_threshold = np.pi / 8
+
+        # Accumulators
+        self.entropies = []
+        self.costs = []
     
 
     def tick(self):
         action = self.get_action()
         self.previous_action = action
-        measurement = self.particle_filter.noisy_measure(*self.world.measure(*action)) # x, y, within_object
+        measurement = self.particle_filter.noisy_measure(*self.world.measure(*action)) # measurement: x, y, within_object
         self.particle_filter.update(measurement)
+
+        self.update_convergence()
+        self.entropies.append(self.particle_filter.get_entropy())
+        self.costs.append(euclidean(self.previous_action or action, action))
+    
+
+    def update_convergence(self):
+        
+        avg_x = self.particle_filter.x
+        avg_y = self.particle_filter.y
+        avg_theta = self.particle_filter.theta
+
+        std_x = np.std([particle.x for particle in self.particle_filter.particles])
+        std_y = np.std([particle.y for particle in self.particle_filter.particles])
+        std_theta = np.std([particle.theta for particle in self.particle_filter.particles])
+
+        if (
+            np.abs(avg_x - self.world.x) <= self.mean_xy_threshold
+            and np.abs(avg_y - self.world.y) <= self.mean_xy_threshold
+            and np.abs(avg_theta - self.world.theta) <= self.mean_theta_threshold
+            and std_x <= self.std_xy_threshold
+            and std_y <= self.std_xy_threshold
+            and std_theta <= self.std_theta_threshold
+        ):
+            self.converged = True
+        else:
+            self.converged = False
 
 
     def get_action(self):
@@ -42,9 +80,13 @@ class ActionController:
         Uses Information Gain / Cost as the discerning objective between candidate_actions.
         """
 
-        # The output is not used in this base case, so this is a shortcut.
+        # If the original lookahead_depth > 0, this output is not used.
+        # If this is the first call and the lookahead_depth == 0, produce a random action.
         if lookahead_depth == 0:
-            return None
+            return (
+                np.random.uniform(0, self.world.map_size[0]), 
+                np.random.uniform(0, self.world.map_size[1])
+            )
 
         current_entropy = particle_filter.get_entropy()
         candidate_actions = particle_filter.get_candidate_actions()
