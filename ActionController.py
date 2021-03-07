@@ -37,7 +37,6 @@ class ActionController:
 
     def tick(self):
         action = self.get_action()
-        self.previous_action = action
         measurement = self.particle_filter.noisy_measure(*self.world.measure(*action)) # measurement: x, y, within_object
         self.particle_filter.update(measurement)
 
@@ -45,6 +44,8 @@ class ActionController:
         self.entropies.append(self.particle_filter.get_entropy())
         self.costs.append(euclidean(self.previous_action or action, action))
     
+        self.previous_action = action
+
 
     def update_convergence(self):
         
