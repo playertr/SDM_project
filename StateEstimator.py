@@ -144,7 +144,7 @@ class ParticleFilter(StateEstimator):
 
         return entropy((H / np.sum(H)).flatten()) / np.log(H.size)
 
-    def get_candidate_actions(self, p_samples=10, tot_samples=10, sigma=2):
+    def get_candidate_actions(self, p_samples=10, tot_samples=10, sigma=1):
         samples = []
         for p in self.particles:
             # Double check that this is the correct syntax for getting the centroid -----------
