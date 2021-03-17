@@ -8,7 +8,8 @@ from shapely import affinity as af
 from shapely.geometry import Point
 from scipy.stats import entropy
 from copy import deepcopy
-
+from numba import jit
+from shapely.geometry import Polygon
 
 class StateEstimator(ABC):
     """ State Estimator abstract base class. StateEstimator
@@ -31,6 +32,15 @@ class StateEstimator(ABC):
         """ Return the uncertainty. The return type may vary. """
         pass
 
+@jit(nopython=True)
+def tfmat(theta, x, y):
+    c = np.cos(theta)
+    s = np.sin(theta)
+    return np.array([
+        [c, -s, x],
+        [s, c, y],
+        [0.0, 0.0, 1.0]
+        ])
 
 class ParticleFilter(StateEstimator):
     """ Particle filter to estimate object x, y, and theta. """
@@ -38,6 +48,14 @@ class ParticleFilter(StateEstimator):
     def __init__(self, shape, num_particles, map_size):
         super().__init__(map_size)
         self.shape = af.translate(shape, -shape.centroid.xy[0].tolist()[0], -shape.centroid.xy[1].tolist()[0]) # shape of object
+
+        # Make array of homogeneous vertex coordinates
+        pts = np.array(self.shape.exterior.coords) 
+        verts = np.zeros((3, len(pts)))
+        verts[2,:] = 1
+        verts[0:2,:] = pts.T
+        self._vertices = verts
+
         self.particles = [Particle() for i in range(num_particles)]
         self.reset_particles()
 
@@ -86,8 +104,8 @@ class ParticleFilter(StateEstimator):
         new_p.x = np.random.normal(loc=p.x, scale=self.XY_TRANSITION_SIGMA)
         new_p.y = np.random.normal(loc=p.y, scale=self.XY_TRANSITION_SIGMA)
         new_p.theta = np.random.normal(loc=p.theta, scale=self.THETA_TRANSITION_SIGMA) % (2 * np.pi)
-        new_p.shape = af.translate(af.rotate(self.shape, new_p.theta, use_radians=True,
-                                             origin=(0, 0)), new_p.x, new_p.y)
+        verts = tfmat(new_p.theta, new_p.x, new_p.y).dot(self._vertices)
+        new_p.shape = Polygon(verts[0:2,:].T)
         return new_p
 
     def reset_particles(self):
@@ -98,6 +116,11 @@ class ParticleFilter(StateEstimator):
             p.theta = np.random.uniform(0, 2 * np.pi)
             p.shape = af.translate(af.rotate(self.shape, p.theta, use_radians=True,
                                              origin=(0, 0)), p.x, p.y)
+
+    def xyt_to_poly(self, x, y, theta):
+        """ Efficiently convert an x, y, theta state to a Polygon object. """
+        verts = tfmat(theta, x, y).dot(self._vertices)
+        return Polygon(verts[0:2,:].T)
 
     def draw_particles(self, ax):
         """ Draw all the particles on this plt Axis. """
@@ -136,7 +159,7 @@ class ParticleFilter(StateEstimator):
         # Gather particle poses into lists
         x = [p.x for p in self.particles]
         y = [p.y for p in self.particles]
-        theta = [p.theta for p in self.particles]
+        theta = [p.theta % 2 * np.pi for p in self.particles]
 
         # Use 3D histogram to bin particles
         bounds = ((0, self.map_size[0]), (0, self.map_size[1]), (0, 2 * np.pi))
@@ -144,7 +167,7 @@ class ParticleFilter(StateEstimator):
 
         return entropy((H / np.sum(H)).flatten()) / np.log(H.size)
 
-    def get_candidate_actions(self, p_samples=10, tot_samples=10, sigma=1):
+    def get_candidate_actions(self, p_samples=10, tot_samples=10, sigma=2):
         samples = []
         for p in self.particles:
             # Double check that this is the correct syntax for getting the centroid -----------
