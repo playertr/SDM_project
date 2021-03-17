@@ -5,10 +5,12 @@
 from abc import ABC, abstractmethod
 import numpy as np
 from shapely import affinity as af
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 from scipy.stats import entropy
 from copy import deepcopy
-
+import multiprocessing
+from functools import partial
+from numba import jit
 
 class StateEstimator(ABC):
     """ State Estimator abstract base class. StateEstimator
@@ -32,6 +34,26 @@ class StateEstimator(ABC):
         pass
 
 
+# def transition_fnc(p, shape, xyts, tts):
+#     """ Makes a new particle, moved by a random amount. """
+#     new_p = Particle()
+#     new_p.x = np.random.normal(loc=p.x, scale=xyts)
+#     new_p.y = np.random.normal(loc=p.y, scale=xyts)
+#     new_p.theta = np.random.normal(loc=p.theta, scale=tts) % (2 * np.pi)
+#     new_p.shape = af.translate(af.rotate(shape, new_p.theta, use_radians=True,
+#                                             origin=(0, 0)), new_p.x, new_p.y)
+#     return new_p
+
+@jit(nopython=True)
+def tfmat(theta, x, y):
+    c = np.cos(theta)
+    s = np.sin(theta)
+    return np.array([
+        [c, -s, x],
+        [s, c,  y],
+        [0.0, 0.0,  1.0]
+        ])
+
 class ParticleFilter(StateEstimator):
     """ Particle filter to estimate object x, y, and theta. """
 
@@ -54,6 +76,34 @@ class ParticleFilter(StateEstimator):
             hit = not hit
         return x, y, hit
 
+    # def update_parallel(self, z):
+    #     """ Updates particles and estimate with new measurement z=(x,y,CONTACT)"""
+    #     # sample new particles according to transition probabilities
+    #     # x_bar = [self.transition_fnc(p) for p in self.particles]
+
+    #     with multiprocessing.Pool(None) as pool:
+    #         x_bar = pool.map(
+    #             partial(transition_fnc, 
+    #                 shape=self.shape, 
+    #                 xyts=self.XY_TRANSITION_SIGMA, 
+    #                 tts=self.THETA_TRANSITION_SIGMA
+    #             ), 
+    #             self.particles,
+    #             chunksize=250)
+
+    #     # weight new particles according to observation likelihood
+    #     weights = [self.obs_likelihood(p, z) for p in x_bar]
+    #     sumw = sum(weights)
+    #     weights = [w / sumw for w in weights]
+
+    #     # draw particles according to their weights
+    #     self.particles = np.random.choice(x_bar, len(x_bar), p=weights, replace=True)
+
+    #     # update MLE estimate as mean of particles. Could also do k-means.
+    #     self.x = np.mean([p.x for p in self.particles])
+    #     self.y = np.mean([p.y for p in self.particles])
+    #     self.theta = np.mean([p.theta for p in self.particles])
+
     def update(self, z):
         """ Updates particles and estimate with new measurement z=(x,y,CONTACT)"""
         # sample new particles according to transition probabilities
@@ -75,10 +125,19 @@ class ParticleFilter(StateEstimator):
     def obs_likelihood(self, p, z):
         """ Returns likelihood of getting measurement z given that the
         object has state (p.x, p.y, p.theta)."""
-        tf_shape = p.shape
         point = Point(z[0], z[1])
-        within = point.within(tf_shape)
+        within = point.within(p.shape)
         return self.OBS_ACCURACY if within == z[2] else (1 - self.OBS_ACCURACY)
+
+    # def transition_fnc(self, p):
+    #     """ Makes a new particle, moved by a random amount. """
+    #     new_p = Particle()
+    #     new_p.x = np.random.normal(loc=p.x, scale=self.XY_TRANSITION_SIGMA)
+    #     new_p.y = np.random.normal(loc=p.y, scale=self.XY_TRANSITION_SIGMA)
+    #     new_p.theta = np.random.normal(loc=p.theta, scale=self.THETA_TRANSITION_SIGMA) % (2 * np.pi)
+    #     new_p.shape = af.translate(af.rotate(self.shape, new_p.theta, use_radians=True,
+    #                                          origin=(0, 0)), new_p.x, new_p.y)
+    #     return new_p
 
     def transition_fnc(self, p):
         """ Makes a new particle, moved by a random amount. """
@@ -86,18 +145,35 @@ class ParticleFilter(StateEstimator):
         new_p.x = np.random.normal(loc=p.x, scale=self.XY_TRANSITION_SIGMA)
         new_p.y = np.random.normal(loc=p.y, scale=self.XY_TRANSITION_SIGMA)
         new_p.theta = np.random.normal(loc=p.theta, scale=self.THETA_TRANSITION_SIGMA) % (2 * np.pi)
-        new_p.shape = af.translate(af.rotate(self.shape, new_p.theta, use_radians=True,
-                                             origin=(0, 0)), new_p.x, new_p.y)
+        new_p._vertices = tfmat(new_p.theta, new_p.x, new_p.y).dot(p._vertices)
+        new_p.shape = Polygon(p._vertices[0:2,:].T)
         return new_p
+
+    # def reset_particles(self):
+    #     """ Initialize particles to random dist over map. """
+    #     for p in self.particles:
+    #         p.x = np.random.uniform(0, self.map_size[0])
+    #         p.y = np.random.uniform(0, self.map_size[1])
+    #         p.theta = np.random.uniform(0, 2 * np.pi)
+    #         p.shape = af.translate(af.rotate(self.shape, p.theta, use_radians=True,
+    #                                          origin=(0, 0)), p.x, p.y)
 
     def reset_particles(self):
         """ Initialize particles to random dist over map. """
+        # Create array of homogeneous coords from shape vertices
+        pts = np.array(self.shape.exterior.coords)
+        for p in self.particles:
+            p._vertices = np.zeros((3, len(pts)))
+            p._vertices[2,:] = 1
+            p._vertices[0:2,:] = pts.T
+
+        # Randomly transform, then make new Shape objects
         for p in self.particles:
             p.x = np.random.uniform(0, self.map_size[0])
             p.y = np.random.uniform(0, self.map_size[1])
             p.theta = np.random.uniform(0, 2 * np.pi)
-            p.shape = af.translate(af.rotate(self.shape, p.theta, use_radians=True,
-                                             origin=(0, 0)), p.x, p.y)
+            p._vertices = tfmat(p.theta, p.x, p.y).dot(p._vertices)
+            p.shape = Polygon(p._vertices[0:2,:].T)
 
     def draw_particles(self, ax):
         """ Draw all the particles on this plt Axis. """
@@ -176,4 +252,5 @@ class Particle:
         self.x = None
         self.y = None
         self.theta = None
+        self._vertices = None
         self.shape = None
