@@ -10,6 +10,7 @@ from scipy.stats import entropy
 from copy import deepcopy
 from numba import jit
 from shapely.geometry import Polygon
+import random
 
 class StateEstimator(ABC):
     """ State Estimator abstract base class. StateEstimator
@@ -60,7 +61,7 @@ class ParticleFilter(StateEstimator):
         self.reset_particles()
 
         self.XY_TRANSITION_SIGMA = 0.1
-        self.THETA_TRANSITION_SIGMA = np.pi / 24
+        self.THETA_TRANSITION_SIGMA = 7.5 * np.pi/180
         self.OBS_ACCURACY = 0.99
     
     def copy(self):
@@ -167,15 +168,27 @@ class ParticleFilter(StateEstimator):
 
         return entropy((H / np.sum(H)).flatten()) / np.log(H.size)
 
-    def get_candidate_actions(self, p_samples=10, tot_samples=10, sigma=4):
+    # def get_candidate_actions(self, p_samples=10, tot_samples=10, sigma=4):
+    #     samples = []
+    #     for p in self.particles:
+    #         # Double check that this is the correct syntax for getting the centroid -----------
+    #         cen_loc = p.shape.centroid
+    #         for take_samples in range(p_samples):
+    #             samples.append((np.random.normal(loc=cen_loc.x, scale=sigma),
+    #                             (np.random.normal(loc=cen_loc.y, scale=sigma))))
+    #     return [samples[i] for i in np.random.randint(0, len(samples), size=tot_samples)]
+    
+    def get_candidate_actions(self, p_samples=1, tot_samples=10, sigma=1):
         samples = []
         for p in self.particles:
             # Double check that this is the correct syntax for getting the centroid -----------
-            cen_loc = p.shape.centroid
+            # cen_loc = p.shape.centroid
+            random_vertex = random.choice(list(p.shape.exterior.coords))
             for take_samples in range(p_samples):
-                samples.append((np.random.normal(loc=cen_loc.x, scale=sigma),
-                                (np.random.normal(loc=cen_loc.y, scale=sigma))))
+                samples.append((np.random.normal(loc=random_vertex[0], scale=sigma),
+                                (np.random.normal(loc=random_vertex[1], scale=sigma))))
         return [samples[i] for i in np.random.randint(0, len(samples), size=tot_samples)]
+
 
 
     def get_expectation_of_hit(self, sample):

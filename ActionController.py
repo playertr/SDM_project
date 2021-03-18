@@ -34,7 +34,7 @@ class ActionController:
         self.entropies = []
         self.costs = []
 
-        self.previous_action = None
+        self.previous_action = (0,0)
         self.converged = None
     
 
@@ -93,10 +93,11 @@ class ActionController:
 
         with multiprocessing.Pool(None) as pool:
             candidate_action_values = pool.map(
-                partial(pv_wrapper,
+                partial(predict_value,
+                    previous_action=self.previous_action,
+                    previous_entropy=current_entropy,
                     particle_filter=particle_filter,
                     lookahead_depth=lookahead_depth-1,
-                    previous_entropy=current_entropy,
                     discount=self.discount,
                     map_size=self.world.map_size
                     ),
@@ -105,44 +106,44 @@ class ActionController:
         
         return candidate_actions[np.argmax(candidate_action_values)]
     
-    def _get_action(self, previous_action, particle_filter, lookahead_depth):
-        # Just to test without multiprocessing
+    # def _get_action(self, previous_action, particle_filter, lookahead_depth):
+    #     # Just to test without multiprocessing
 
-        # If the original lookahead_depth > 0, this output is not used.
-        # If this is the first call and the lookahead_depth == 0, produce a random action.
-        if lookahead_depth == 0:
-            return (
-                np.random.uniform(0, self.world.map_size[0]), 
-                np.random.uniform(0, self.world.map_size[1])
-            )
+    #     # If the original lookahead_depth > 0, this output is not used.
+    #     # If this is the first call and the lookahead_depth == 0, produce a random action.
+    #     if lookahead_depth == 0:
+    #         return (
+    #             np.random.uniform(0, self.world.map_size[0]), 
+    #             np.random.uniform(0, self.world.map_size[1])
+    #         )
 
-        current_entropy = particle_filter.get_entropy()
-        candidate_actions = particle_filter.get_candidate_actions()
+    #     current_entropy = particle_filter.get_entropy()
+    #     candidate_actions = particle_filter.get_candidate_actions()
 
-        candidate_action_values = [pv_wrapper(
-            action, 
-            particle_filter=particle_filter,
-            lookahead_depth=lookahead_depth-1,
-            previous_entropy=current_entropy,
-            discount=self.discount,
-            map_size=self.world.map_size)
-            for action in candidate_actions
-            ]
+    #     candidate_action_values = [pv_wrapper(
+    #         action, 
+    #         particle_filter=particle_filter,
+    #         lookahead_depth=lookahead_depth-1,
+    #         previous_entropy=current_entropy,
+    #         discount=self.discount,
+    #         map_size=self.world.map_size)
+    #         for action in candidate_actions
+    #         ]
         
-        return candidate_actions[np.argmax(candidate_action_values)]
+    #     return candidate_actions[np.argmax(candidate_action_values)]
     
 
 # Modified get_action and predict_entropy_and_cost to be global, stateless functions for multiprocessing.
-def pv_wrapper(action, particle_filter, previous_entropy, lookahead_depth, discount, map_size):
-    return predict_value(
-        this_action=action, 
-        previous_action=action,
-        previous_entropy=previous_entropy,
-        particle_filter=particle_filter,
-        lookahead_depth=lookahead_depth,
-        discount=discount,
-        map_size=map_size
-    )
+# def pv_wrapper(action, particle_filter, previous_entropy, lookahead_depth, discount, map_size):
+#     return predict_value(
+#         this_action=action, 
+#         previous_action=action,
+#         previous_entropy=previous_entropy,
+#         particle_filter=particle_filter,
+#         lookahead_depth=lookahead_depth,
+#         discount=discount,
+#         map_size=map_size
+#     )
 
 
 def get_action(previous_action, particle_filter, lookahead_depth, discount, map_size):
