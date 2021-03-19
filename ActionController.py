@@ -208,7 +208,7 @@ def predict_value(this_action, previous_action, previous_entropy, particle_filte
     current_expected_entropy = np.dot(outcome_entropies, [alpha, 1 - alpha])
     current_cost = euclidean(previous_action, this_action)
     
-    current_value = (previous_entropy - current_expected_entropy) / (current_cost or 1)
+    current_value = (previous_entropy - current_expected_entropy) - 0.01* (current_cost or 1)
 
     # Base case
     if lookahead_depth == 0:
